@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+
+  {% load static %}
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+    integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+  <title>Title</title>
+</head>
+
+<body>
+  <form id="registration_form">
+    {% csrf_token %}
+    <input type="text" name="user_name" value="user1">
+    <input type="submit" id="startBtn" class="btn btn-primary" value="Submit">
+  </form>
+
+</body>
+
+</html>
+
+<script type="module">
+  import { registerCredential } from "{% static 'webapp/modules/client.js' %}";
+
+  if (window.PublicKeyCredential) {
+    PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+      .then(uvpaa => {
+        if (uvpaa) {
+          console.log("biometric sensor available");
+        } else {
+          console.log("biometric sensor not available");
+        }
+      });
+  } else {
+    console.log("webauthn not supported");
+  }
+
+
+  $(document).on("submit", "#registration_form", (e) => {
+    e.preventDefault();
+    const $this = $(e.target)
+    let post_data = $this.serialize();
+    $.ajax({
+      url: "{% url 'authenticator:register_request' %}",
+      type: "POST",
+      processData: false,
+      dataType: "json",
+      data: post_data
+    })
+      .done(options => {
+        registerCredential(options)
+          .then(credential => {
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            $.ajax({
+              url: "{% url 'authenticator:register_response' %}",
+              type: "POST",
+              headers: {'X-CSRFToken': csrftoken},
+              processData: false,
+              data: "credential="+JSON.stringify(credential)
+            })
+              .then(response => {
+                console.log("registration success");
+              })
+              .fail(response => {
+                console.error(response);
+              });
+          });
+      })
+      .fail(response => {
+        console.error(response);
+      });
+  });
+</script>
