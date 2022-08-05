@@ -56,6 +56,7 @@ class RegisterResponseView(View):
         credential = json.loads(request.POST['credential'])
 
         if 'response' not in credential:
+            # TODO
             pass
 
         # Registration Response Verification
