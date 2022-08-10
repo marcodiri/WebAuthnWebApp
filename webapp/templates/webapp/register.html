@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+
+  {% load static %}
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+    integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+  <title>Register</title>
+</head>
+
+<body>
+  {% if form %}
+  <form id="registration_form" method="POST">
+    {% csrf_token %}
+    {{ form }}
+    <input type="submit" id="registerBtn" class="btn btn-primary" value="Register">
+  </form>
+  {% endif %}
+  {% if qrcodeB64 %}
+  <div><p>Scan this QR with your mobile device to register your fingerprint</p></div>
+  <div id="qrcode"></div>
+  {% endif %}
+  {% if messages %}
+  <ul class="messages">
+    {% for message in messages %}
+    <li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
+      {% endfor %}
+  </ul>
+  {% endif %}
+
+  {% if qrcodeB64 %}
+  <script>
+    const b64toBlob = (b64Data, contentType = '', sliceSize = 512) => {
+      const byteCharacters = atob(b64Data);
+      const byteArrays = [];
+
+      for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+        const slice = byteCharacters.slice(offset, offset + sliceSize);
+
+        const byteNumbers = new Array(slice.length);
+        for (let i = 0; i < slice.length; i++) {
+          byteNumbers[i] = slice.charCodeAt(i);
+        }
+
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+      }
+
+      const blob = new Blob(byteArrays, { type: contentType });
+      return blob;
+    }
+
+    const contentType = 'image/jpg';
+    const b64Data = "{{ qrcodeB64 }}";
+    const blob = b64toBlob(b64Data, contentType);
+    const blobUrl = URL.createObjectURL(blob);
+
+    const img = document.createElement('img');
+    img.src = blobUrl;
+    document.getElementById('qrcode').appendChild(img);
+  </script>
+  {% endif %}
+</body>
+
+</html>

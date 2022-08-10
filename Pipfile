@@ -9,6 +9,8 @@ webauthn = "*"
 django-sslserver = "*"
 tzdata = "*"
 django-environ = "*"
+qrcode = "*"
+pillow = "*"
 
 [dev-packages]
 pylint = "*"

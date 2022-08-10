@@ -1,8 +1,15 @@
 import json
+import base64
+import qrcode
+from io import BytesIO
 
 from django.views.generic.base import View
 from django.http.response import HttpResponse, JsonResponse
 from django.conf import settings
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.urls import reverse
+from urllib.parse import urlencode
 
 from webauthn import (
     generate_registration_options,
@@ -10,6 +17,7 @@ from webauthn import (
     options_to_json,
     base64url_to_bytes,
 )
+from webauthn.helpers import bytes_to_base64url
 from webauthn.helpers.structs import (
     AttestationConveyancePreference,
     AuthenticatorAttachment,
@@ -17,7 +25,8 @@ from webauthn.helpers.structs import (
     ResidentKeyRequirement,
     RegistrationCredential,
 )
-from webauthn.helpers import bytes_to_base64url
+
+from authenticator.forms import TempSessionForm
 
 
 RP_ID = settings.RP_ID
@@ -28,14 +37,50 @@ RP_NAME = settings.RP_NAME
 # authentication domain/api/*
 
 # respond on POST req, return forbidden on GET
-class RegisterRequestView(View):
+def registerMiddlewareView(request):
+    """
+    Create temporary session on a register request that has not yet
+    been confirmed by biometrics.
+    """
 
+    form = TempSessionForm(request.POST)
+    try:
+        temp_session = form.save()
+        session_id = temp_session.id
+        # generate QR with redirect url
+        host = request.get_host()
+        path = reverse('webapp:register_biometrics')
+        query = urlencode({'id': session_id})
+        url = 'https://{}{}?{}'.format(host, path, query)
+        qr = qrcode.QRCode(
+            version=1,
+            box_size=6,
+            border=3
+            )
+        qr.add_data(url)
+        qr.make(fit=True)
+        img = qr.make_image(fill='black', back_color='white')
+        # convert qr image to base64
+        buffered = BytesIO()
+        img.save(buffered, format="JPEG")
+        img_bytes = base64.b64encode(buffered.getvalue())
+        return JsonResponse({'session_id': session_id, 'qrcodeB64': img_bytes.decode()})
+    except Exception as e:
+        if form.has_error and 'username' in form.errors:
+            # set messages to be displayed in template
+            messages.error(request, form.errors['username'])
+            return redirect(request.path)
+        else:
+            return HttpResponse(str(e), status=500)
+
+class RegisterRequestView(View):
+    # answer to a biometrics register request sending options to initiate the registration
     def post(self, request):
         
         registration_options = generate_registration_options(
             rp_id=RP_ID,
             rp_name=RP_NAME,
-            user_id="12345",
+            user_id="12345", # FIXME: generate UUID
             user_name=request.POST['user_name'],
             attestation=AttestationConveyancePreference.DIRECT,
             authenticator_selection=AuthenticatorSelectionCriteria(
@@ -51,7 +96,7 @@ class RegisterRequestView(View):
 
 
 class RegisterResponseView(View):
-
+    # verifies correctness of client response and completes the registration
     def post(self, request):
         credential = json.loads(request.POST['credential'])
 

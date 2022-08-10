@@ -5,6 +5,7 @@ from . import views
 
 app_name = 'authenticator'
 urlpatterns = [
+    path('auth/register-middleware', views.registerMiddlewareView, name='register_middleware'),
     path('auth/register-request', views.RegisterRequestView.as_view(), name='register_request'),
     path('auth/register-response', views.RegisterResponseView.as_view(), name='register_response'),
 ]

@@ -8,14 +8,15 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"
     integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
 
-  <title>Title</title>
+  <title>Register</title>
 </head>
 
 <body>
-  <form id="registration_form">
+  <form id="register_biometrics_form">
     {% csrf_token %}
-    <input type="text" name="user_name" value="user1">
-    <input type="submit" id="startBtn" class="btn btn-primary" value="Submit">
+    <label for="password">Type the password chosen during registration</label>
+    <input type="password" name="password">
+    <input type="submit" id="submitBtn" class="btn btn-primary" value="Proceed">
   </form>
 
 </body>
@@ -31,6 +32,7 @@
         if (uvpaa) {
           console.log("biometric sensor available");
         } else {
+          // TODO: show error to user
           console.log("biometric sensor not available");
         }
       });
@@ -38,8 +40,7 @@
     console.log("webauthn not supported");
   }
 
-
-  $(document).on("submit", "#registration_form", (e) => {
+  $(document).on("submit", "#register_biometrics_form", (e) => {
     e.preventDefault();
     const $this = $(e.target)
     let post_data = $this.serialize();
