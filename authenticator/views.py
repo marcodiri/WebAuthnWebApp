@@ -1,15 +1,17 @@
 import json
 import base64
+import uuid
 import qrcode
 from io import BytesIO
+from urllib.parse import urlencode
 
 from django.views.generic.base import View
-from django.http.response import HttpResponse, JsonResponse
+from django.http.response import HttpResponse, HttpResponseRedirect, JsonResponse
 from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
-from urllib.parse import urlencode
+from django.contrib.auth import authenticate
 
 from webauthn import (
     generate_registration_options,
@@ -27,7 +29,11 @@ from webauthn.helpers.structs import (
 )
 
 from authenticator.forms import TempSessionForm
+from .models import Credential, TempSession, User
 
+import logging
+
+logger = logging.getLogger('authenticator.logger')
 
 RP_ID = settings.RP_ID
 RP_NAME = settings.RP_NAME
@@ -51,7 +57,7 @@ def registerMiddlewareView(request):
         host = request.get_host()
         path = reverse('webapp:register_biometrics')
         query = urlencode({'id': session_id})
-        url = 'https://{}{}?{}'.format(host, path, query)
+        url = f'https://{host}{path}?{query}'
         qr = qrcode.QRCode(
             version=1,
             box_size=6,
@@ -74,21 +80,37 @@ def registerMiddlewareView(request):
             return HttpResponse(str(e), status=500)
 
 class RegisterRequestView(View):
-    # answer to a biometrics register request sending options to initiate the registration
+    """
+    Answer to a biometrics register request sending options to initiate the registration.
+    """
+
     def post(self, request):
+        session_id = request.GET['id']
+        password = request.POST['password']
+        
+        # check that temp session exists and password matches
+        temp_session = authenticate(request, username=session_id, password=password)
+        if not temp_session:
+            messages.error(request, 'User could not be authenticated, try again.')
+            # response to ajax request, so cannot redirect directly. Do redirection on the client.
+            return HttpResponse(status=302)
+        
+        user_id = uuid.uuid4().hex
+        user_name = temp_session.username
         
         registration_options = generate_registration_options(
             rp_id=RP_ID,
             rp_name=RP_NAME,
-            user_id="12345", # FIXME: generate UUID
-            user_name=request.POST['user_name'],
+            user_id=user_id,
+            user_name=user_name,
             attestation=AttestationConveyancePreference.DIRECT,
             authenticator_selection=AuthenticatorSelectionCriteria(
                 authenticator_attachment=AuthenticatorAttachment.PLATFORM,
                 resident_key=ResidentKeyRequirement.REQUIRED,
             ),
         )
-
+        request.session['session_id'] = session_id
+        request.session['user_id'] = user_id
         # save challenge in session to be verified later
         request.session['challenge'] = bytes_to_base64url(registration_options.challenge)
 
@@ -96,13 +118,12 @@ class RegisterRequestView(View):
 
 
 class RegisterResponseView(View):
-    # verifies correctness of client response and completes the registration
+    """
+    Verifies correctness of client response and completes the registration.
+    """
+
     def post(self, request):
         credential = json.loads(request.POST['credential'])
-
-        if 'response' not in credential:
-            # TODO
-            pass
 
         # Registration Response Verification
         registration_verification = verify_registration_response(
@@ -124,6 +145,29 @@ class RegisterResponseView(View):
         )
         del request.session['challenge']
 
-        # TODO: save user to DB
+        session_id = request.session['session_id']
+        user_id = request.session['user_id']
+        try:
+            temp_session = TempSession.objects.get(pk=session_id)
+            # delete temp session
+            temp_session.delete()
+            request.session.flush()
+            
+            new_user = User(id=user_id, username=temp_session.username)
+            new_user.password = temp_session.password
+            
+            # save authenticator
+            new_credential = Credential(
+                user=new_user,
+                credential_id=bytes_to_base64url(registration_verification.credential_id),
+                credential_public_key=bytes_to_base64url(registration_verification.credential_public_key)
+                )
+            
+            new_user.save()
+            new_credential.save()
+            
+        except Exception as e:
+            logger.exception(e)
+            return HttpResponse(status=500)
 
         return HttpResponse(status=200)

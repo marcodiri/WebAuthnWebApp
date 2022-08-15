@@ -19,6 +19,14 @@
     <input type="submit" id="submitBtn" class="btn btn-primary" value="Proceed">
   </form>
 
+  {% if messages %}
+  <ul class="messages">
+    {% for message in messages %}
+    <li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
+      {% endfor %}
+  </ul>
+  {% endif %}
+
 </body>
 
 </html>
@@ -42,10 +50,12 @@
 
   $(document).on("submit", "#register_biometrics_form", (e) => {
     e.preventDefault();
+    const urlParams = new URLSearchParams(window.location.search);
+
     const $this = $(e.target)
     let post_data = $this.serialize();
     $.ajax({
-      url: "{% url 'authenticator:register_request' %}",
+      url: `{% url 'authenticator:register_request' %}?id=${urlParams.get('id')}`,
       type: "POST",
       processData: false,
       dataType: "json",
@@ -71,7 +81,10 @@
           });
       })
       .fail(response => {
-        console.error(response);
+        if (response.status === 302)
+          location.reload();
+        else 
+          console.error(response.responseText);
       });
   });
 </script>

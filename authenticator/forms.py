@@ -2,14 +2,6 @@ import uuid
 from django import forms
 from .models import TempSession
 
-# class TempSessionForm(forms.ModelForm):
-#     class Meta:
-#         model = TempSession
-#         exclude = ['id']
-#         widgets = {
-#             'password': forms.PasswordInput(),
-#         }
-
 
 class TempSessionForm(forms.ModelForm):
     username = forms.RegexField(
