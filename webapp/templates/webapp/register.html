@@ -33,6 +33,7 @@
 
   {% if qrcodeB64 %}
   <script>
+    // https://stackoverflow.com/a/16245768
     const b64toBlob = (b64Data, contentType = '', sliceSize = 512) => {
       const byteCharacters = atob(b64Data);
       const byteArrays = [];
@@ -53,6 +54,7 @@
       return blob;
     }
 
+    // make image blob from base64 and show it
     const contentType = 'image/jpg';
     const b64Data = "{{ qrcodeB64 }}";
     const blob = b64toBlob(b64Data, contentType);
