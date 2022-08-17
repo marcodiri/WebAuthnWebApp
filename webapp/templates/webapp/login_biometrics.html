@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+
+  {% load static %}
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"
+    integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+
+  <title>Login</title>
+</head>
+
+<body>
+  <form id="login_form">
+    {% csrf_token %}
+    <input type="text" name="user_name" value="user1">
+    <input type="submit" id="loginBtn" class="btn btn-primary" value="Login with biometrics">
+  </form>
+
+  <div><p>Don't have an account? <a href="register">Register here</a>.</p></div>
+
+  <script>
+    
+    if (window.PublicKeyCredential) {
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+        .then(uvpaa => {
+          if (uvpaa) {
+            console.log("biometric sensor available");
+          } else {
+            // TODO: show error to user
+            console.log("biometric sensor not available");
+          }
+        });
+    } else {
+      console.log("webauthn not supported");
+    }
+
+    $(document).on("submit", "#loginBtn", (e) => {
+      e.preventDefault();
+      const urlParams = new URLSearchParams(window.location.search);
+  
+      const $this = $(e.target)
+      let post_data = $this.serialize();
+    });
+  </script>
+</body>
+
+</html>

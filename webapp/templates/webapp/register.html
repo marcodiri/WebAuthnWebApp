@@ -18,17 +18,17 @@
     {{ form }}
     <input type="submit" id="registerBtn" class="btn btn-primary" value="Register">
   </form>
+    {% if messages %}
+    <ul class="messages">
+      {% for message in messages %}
+      <li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
   {% endif %}
   {% if qrcodeB64 %}
   <div><p>Scan this QR with your mobile device to register your fingerprint</p></div>
   <div id="qrcode"></div>
-  {% endif %}
-  {% if messages %}
-  <ul class="messages">
-    {% for message in messages %}
-    <li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
-      {% endfor %}
-  </ul>
   {% endif %}
 
   {% if qrcodeB64 %}

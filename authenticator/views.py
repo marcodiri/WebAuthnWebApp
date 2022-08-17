@@ -28,7 +28,7 @@ from webauthn.helpers.structs import (
     RegistrationCredential,
 )
 
-from authenticator.forms import TempSessionForm
+from authenticator.forms import LoginForm, TempSessionForm
 from .models import Credential, TempSession, User
 
 import logging
@@ -77,6 +77,7 @@ def registerMiddlewareView(request):
             messages.error(request, form.errors['username'])
             return redirect(request.path)
         else:
+            logger.exception(e)
             return HttpResponse(str(e), status=500)
 
 class RegisterRequestView(View):
@@ -171,3 +172,51 @@ class RegisterResponseView(View):
             return HttpResponse(status=500)
 
         return HttpResponse(status=200)
+
+
+def loginMiddlewareView(request):
+    """
+    Create temporary session on a login request that has not yet
+    been confirmed by biometrics.
+    """
+
+    form = LoginForm(request.POST)
+    form.is_valid()  # check that username exists
+    if form.has_error and 'username' in form.errors:
+        # set messages to be displayed in template
+        messages.error(request, form.errors['username'])
+        return redirect(request.path)
+    else:
+        temp_session = TempSession(id=uuid.uuid4(), username=form.cleaned_data['username'])
+        temp_session.save()
+        return HttpResponse(status=200)
+    form = TempSessionForm(request.POST)
+    try:
+        temp_session = form.save()
+        session_id = temp_session.id
+        # generate QR with redirect url
+        host = request.get_host()
+        path = reverse('webapp:register_biometrics')
+        query = urlencode({'id': session_id})
+        url = f'https://{host}{path}?{query}'
+        qr = qrcode.QRCode(
+            version=1,
+            box_size=6,
+            border=3
+            )
+        qr.add_data(url)
+        qr.make(fit=True)
+        img = qr.make_image(fill='black', back_color='white')
+        # convert qr image to base64
+        buffered = BytesIO()
+        img.save(buffered, format="JPEG")
+        img_bytes = base64.b64encode(buffered.getvalue())
+        return JsonResponse({'session_id': session_id, 'qrcodeB64': img_bytes.decode()})
+    except Exception as e:
+        if form.has_error and 'username' in form.errors:
+            # set messages to be displayed in template
+            messages.error(request, form.errors['username'])
+            return redirect(request.path)
+        else:
+            logger.exception(e)
+            return HttpResponse(str(e), status=500)

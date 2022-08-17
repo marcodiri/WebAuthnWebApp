@@ -1,6 +1,6 @@
 import uuid
 from django import forms
-from .models import TempSession
+from .models import TempSession, User
 
 
 class TempSessionForm(forms.ModelForm):
@@ -31,3 +31,22 @@ class TempSessionForm(forms.ModelForm):
         if commit:
             temp_session.save()
         return temp_session
+
+
+class LoginForm(forms.Form):
+    username = forms.RegexField(
+        max_length=10, regex=r'^[\w.@+-]+$',
+        error_messages = {'invalid': "Username may be max 10 characters and may contain only letters, numbers and @/./+/-/_."}
+    )
+    
+    class Meta:
+        model = User
+        fields = ('username',)
+
+    def clean_username(self):
+        username = self.cleaned_data['username'].strip()
+        try:
+            User.objects.get(username__iexact=username)
+            return username
+        except User.DoesNotExist:
+            raise forms.ValidationError('Username does not exist')
