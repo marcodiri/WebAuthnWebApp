@@ -233,12 +233,10 @@ class LoginRequestView(View):
             user_id = request.GET['id']
         
             # get registered user credentials and generate authentication options.
-            # For now each user is supposed to have exactly one credential,
-            # if we want more iterate over the query result and create a 
-            # PublicKeyCredentialDescriptor for each one
-            credentials = Credential.objects.get(user_id=user_id)
+            credentials = Credential.objects.filter(user_id=user_id)
             allow_credentials = [
-                PublicKeyCredentialDescriptor(id=base64url_to_bytes(credentials.credential_id)),
+                PublicKeyCredentialDescriptor(id=base64url_to_bytes(c.credential_id))
+                for c in credentials
                 ]
             
             authentication_options = generate_authentication_options(
@@ -265,9 +263,14 @@ class LoginResponseView(View):
     def post(self, request):
         try:
             credential = json.loads(request.POST['credential'])
-            credentials = Credential.objects.get(user_id=request.session['user_id'])
+            saved_credential = Credential.objects.get(
+                user_id=request.session['user_id'], 
+                credential_id=credential['id']
+                )
 
             # Authentication Response Verification
+            # verify that the signature in client response was signed with the private key 
+            # corresponding to the public key saved in DB at registration time
             authentication_verification = verify_authentication_response(
                 credential=AuthenticationCredential.parse_raw(
                     f"""{{
@@ -286,7 +289,7 @@ class LoginResponseView(View):
                 expected_challenge=base64url_to_bytes(request.session['challenge']),
                 expected_origin=f"https://{RP_ID}:8000",
                 expected_rp_id=RP_ID,
-                credential_public_key=base64url_to_bytes(credentials.credential_public_key),
+                credential_public_key=base64url_to_bytes(saved_credential.credential_public_key),
                 credential_current_sign_count=0,
                 require_user_verification=True,
             )
