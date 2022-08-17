@@ -17,6 +17,7 @@ from webauthn import (
     generate_registration_options,
     verify_registration_response,
     generate_authentication_options,
+    verify_authentication_response,
     options_to_json,
     base64url_to_bytes,
 )
@@ -31,6 +32,7 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
     AuthenticationCredential,
 )
+from webauthn.helpers.exceptions import InvalidAuthenticationResponse
 
 from authenticator.forms import LoginForm, TempSessionForm
 from .models import Credential, TempSession, User
@@ -247,6 +249,7 @@ class LoginRequestView(View):
             
             # save challenge in session to be verified later
             request.session['challenge'] = bytes_to_base64url(authentication_options.challenge)
+            request.session['user_id'] = user_id
 
             return JsonResponse(json.loads(options_to_json(authentication_options)))
         except Exception as e:
@@ -260,7 +263,40 @@ class LoginResponseView(View):
     """
     
     def post(self, request):
-        credential = json.loads(request.POST['credential'])
+        try:
+            credential = json.loads(request.POST['credential'])
+            credentials = Credential.objects.get(user_id=request.session['user_id'])
 
-        # Login Response Verification
-        pass
+            # Authentication Response Verification
+            authentication_verification = verify_authentication_response(
+                credential=AuthenticationCredential.parse_raw(
+                    f"""{{
+                        "id": "{credential['id']}",
+                        "rawId": "{credential['rawId']}",
+                        "response": {{
+                            "authenticatorData": "{credential['response']['authenticatorData']}",
+                            "clientDataJSON": "{credential['response']['clientDataJSON']}",
+                            "signature": "{credential['response']['signature']}",
+                            "userHandle": "{credential['response']['userHandle']}"
+                        }},
+                        "type": "{credential['type']}",
+                        "clientExtensionResults": "{{}}"
+                    }}"""
+                ),
+                expected_challenge=base64url_to_bytes(request.session['challenge']),
+                expected_origin=f"https://{RP_ID}:8000",
+                expected_rp_id=RP_ID,
+                credential_public_key=base64url_to_bytes(credentials.credential_public_key),
+                credential_current_sign_count=0,
+                require_user_verification=True,
+            )
+
+            request.session.flush()
+            return HttpResponse(status=200)
+        except InvalidAuthenticationResponse as e:
+            logger.exception(e)
+            messages.error(request, 'Authenticator could not be validated')
+            return HttpResponse(status=302)
+        except Exception as e:
+            logger.exception(e)
+            return HttpResponse(status=500)
