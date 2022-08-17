@@ -11,38 +11,18 @@ from authenticator.views import loginMiddlewareView, registerMiddlewareView
 
 logger = logging.getLogger('webapp.logger')
 
-class LoginView(TemplateView):
-    form_class = LoginForm
-    template_name = 'webapp/login.html'
+
+class InputView(TemplateView):
+    response_fn = None
     
     def get(self, request, *args, **kwargs):
-        form = self.form_class()
-        return render(request, self.template_name, context={'form': form,})
-    
-    def post(self, request, *args, **kwargs):
-        response = loginMiddlewareView(request)
-
-        if response.status_code == 200:
-            request.session['session_id'] = json.loads(response.content.decode('utf-8'))['session_id']
-            request.session['qrcodeB64'] = json.loads(response.content.decode('utf-8'))['qrcodeB64']
-            return redirect(request.path)
-        elif response.status_code == 302:
-            return redirect(response.url)
-        else:
-            return HttpResponse(status=500)
-
-class RegisterView(TemplateView):
-    form_class = TempSessionForm
-    template_name = 'webapp/register.html'
-
-    def get(self, request, *args, **kwargs):
-        if 'session_id' in request.session:
-            session_id = request.session['session_id']
+        if 'id' in request.session:
+            id = request.session['id']
             qrcodeB64 = request.session['qrcodeB64']
-            del request.session['session_id']
+            del request.session['id']
             del request.session['qrcodeB64']
             context = {
-                'session_id': session_id,
+                'id': id,
                 'qrcodeB64': qrcodeB64,
             }
             return render(request, self.template_name, context=context)
@@ -51,10 +31,10 @@ class RegisterView(TemplateView):
             return render(request, self.template_name, context={'form': form,})
     
     def post(self, request, *args, **kwargs):
-        response = registerMiddlewareView(request)
+        response = self.response_fn(request)
 
         if response.status_code == 200:
-            request.session['session_id'] = json.loads(response.content.decode('utf-8'))['session_id']
+            request.session['id'] = json.loads(response.content.decode('utf-8'))['id']
             request.session['qrcodeB64'] = json.loads(response.content.decode('utf-8'))['qrcodeB64']
             return redirect(request.path)
         elif response.status_code == 302:
@@ -63,6 +43,21 @@ class RegisterView(TemplateView):
             return HttpResponse(status=500)
 
 
+class RegisterView(InputView):
+    form_class = TempSessionForm
+    template_name = 'webapp/register.html'
+    response_fn = registerMiddlewareView
+
+
 class RegisterBiometricsView(TemplateView):
     template_name = 'webapp/register_biometrics.html'
 
+
+class LoginView(InputView):
+    form_class = LoginForm
+    template_name = 'webapp/login.html'
+    response_fn = loginMiddlewareView
+
+
+class LoginBiometricsView(TemplateView):
+    template_name = 'webapp/login_biometrics.html'

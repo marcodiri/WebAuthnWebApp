@@ -12,15 +12,8 @@
 </head>
 
 <body>
-  <form id="login_form">
-    {% csrf_token %}
-    <input type="text" name="user_name" value="user1">
-    <input type="submit" id="loginBtn" class="btn btn-primary" value="Login with biometrics">
-  </form>
-
-  <div><p>Don't have an account? <a href="register">Register here</a>.</p></div>
-
-  <script>
+  <script type="module">
+    import { getCredential } from "{% static 'webapp/modules/client.js' %}";
     
     if (window.PublicKeyCredential) {
       PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
@@ -36,12 +29,41 @@
       console.log("webauthn not supported");
     }
 
-    $(document).on("submit", "#loginBtn", (e) => {
-      e.preventDefault();
+    $(document).ready(() => {
       const urlParams = new URLSearchParams(window.location.search);
-  
-      const $this = $(e.target)
-      let post_data = $this.serialize();
+      $.ajaxSetup({
+        headers: {
+          "X-CSRFToken": '{{ csrf_token }}'
+        }
+      });
+      $.ajax({
+        url: `{% url 'authenticator:login_request' %}?id=${urlParams.get('id')}`,
+        type: "POST",
+        processData: false,
+        dataType: "json"
+      }).then(options => {
+        getCredential(options)
+          .then(credential => {
+            $.ajax({
+              url: "{% url 'authenticator:login_response' %}",
+              type: "POST",
+              processData: false,
+              data: "credential="+JSON.stringify(credential)
+            })
+              .then(response => {
+                console.log("registration success");
+              })
+              .fail(response => {
+                console.error(response);
+              });
+          });
+      })
+      .fail(response => {
+        if (response.status === 302)
+          location.reload();
+        else 
+          console.error(response.responseText);
+      });
     });
   </script>
 </body>

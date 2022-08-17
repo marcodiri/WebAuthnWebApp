@@ -16,6 +16,7 @@ from django.contrib.auth import authenticate
 from webauthn import (
     generate_registration_options,
     verify_registration_response,
+    generate_authentication_options,
     options_to_json,
     base64url_to_bytes,
 )
@@ -26,6 +27,9 @@ from webauthn.helpers.structs import (
     AuthenticatorSelectionCriteria,
     ResidentKeyRequirement,
     RegistrationCredential,
+    PublicKeyCredentialDescriptor,
+    UserVerificationRequirement,
+    AuthenticationCredential,
 )
 
 from authenticator.forms import LoginForm, TempSessionForm
@@ -43,7 +47,7 @@ RP_NAME = settings.RP_NAME
 # authentication domain/api/*
 
 # respond on POST req, return forbidden on GET
-def registerMiddlewareView(request):
+def registerMiddlewareView(caller, request):
     """
     Create temporary session on a register request that has not yet
     been confirmed by biometrics.
@@ -70,7 +74,7 @@ def registerMiddlewareView(request):
         buffered = BytesIO()
         img.save(buffered, format="JPEG")
         img_bytes = base64.b64encode(buffered.getvalue())
-        return JsonResponse({'session_id': session_id, 'qrcodeB64': img_bytes.decode()})
+        return JsonResponse({'id': session_id, 'qrcodeB64': img_bytes.decode()})
     except Exception as e:
         if form.has_error and 'username' in form.errors:
             # set messages to be displayed in template
@@ -86,36 +90,41 @@ class RegisterRequestView(View):
     """
 
     def post(self, request):
-        session_id = request.GET['id']
-        password = request.POST['password']
-        
-        # check that temp session exists and password matches
-        temp_session = authenticate(request, username=session_id, password=password)
-        if not temp_session:
-            messages.error(request, 'User could not be authenticated, try again.')
-            # response to ajax request, so cannot redirect directly. Do redirection on the client.
-            return HttpResponse(status=302)
-        
-        user_id = uuid.uuid4().hex
-        user_name = temp_session.username
-        
-        registration_options = generate_registration_options(
-            rp_id=RP_ID,
-            rp_name=RP_NAME,
-            user_id=user_id,
-            user_name=user_name,
-            attestation=AttestationConveyancePreference.DIRECT,
-            authenticator_selection=AuthenticatorSelectionCriteria(
-                authenticator_attachment=AuthenticatorAttachment.PLATFORM,
-                resident_key=ResidentKeyRequirement.REQUIRED,
-            ),
-        )
-        request.session['session_id'] = session_id
-        request.session['user_id'] = user_id
-        # save challenge in session to be verified later
-        request.session['challenge'] = bytes_to_base64url(registration_options.challenge)
+        try:
+            session_id = request.GET['id']
+            password = request.POST['password']
+            
+            # check that temp session exists and password matches
+            temp_session = authenticate(request, username=session_id, password=password)
+            if not temp_session:
+                messages.error(request, 'User could not be authenticated, try again.')
+                # response to ajax request, so cannot redirect directly. Do redirection on the client.
+                return HttpResponse(status=302)
+            
+            user_id = uuid.uuid4().hex
+            user_name = temp_session.username
+            
+            registration_options = generate_registration_options(
+                rp_id=RP_ID,
+                rp_name=RP_NAME,
+                user_id=user_id,
+                user_name=user_name,
+                attestation=AttestationConveyancePreference.DIRECT,
+                authenticator_selection=AuthenticatorSelectionCriteria(
+                    authenticator_attachment=AuthenticatorAttachment.PLATFORM,
+                    resident_key=ResidentKeyRequirement.REQUIRED,
+                ),
+            )
+            request.session['session_id'] = session_id
+            request.session['user_id'] = user_id
+            # save challenge in session to be verified later
+            request.session['challenge'] = bytes_to_base64url(registration_options.challenge)
 
-        return JsonResponse(json.loads(options_to_json(registration_options)))
+            return JsonResponse(json.loads(options_to_json(registration_options)))
+        except Exception as e:
+            logger.exception(e)
+            return HttpResponse(status=500)
+            
 
 
 class RegisterResponseView(View):
@@ -174,7 +183,7 @@ class RegisterResponseView(View):
         return HttpResponse(status=200)
 
 
-def loginMiddlewareView(request):
+def loginMiddlewareView(caller, request):
     """
     Create temporary session on a login request that has not yet
     been confirmed by biometrics.
@@ -187,36 +196,71 @@ def loginMiddlewareView(request):
         messages.error(request, form.errors['username'])
         return redirect(request.path)
     else:
-        temp_session = TempSession(id=uuid.uuid4(), username=form.cleaned_data['username'])
-        temp_session.save()
-        return HttpResponse(status=200)
-    form = TempSessionForm(request.POST)
-    try:
-        temp_session = form.save()
-        session_id = temp_session.id
-        # generate QR with redirect url
-        host = request.get_host()
-        path = reverse('webapp:register_biometrics')
-        query = urlencode({'id': session_id})
-        url = f'https://{host}{path}?{query}'
-        qr = qrcode.QRCode(
-            version=1,
-            box_size=6,
-            border=3
-            )
-        qr.add_data(url)
-        qr.make(fit=True)
-        img = qr.make_image(fill='black', back_color='white')
-        # convert qr image to base64
-        buffered = BytesIO()
-        img.save(buffered, format="JPEG")
-        img_bytes = base64.b64encode(buffered.getvalue())
-        return JsonResponse({'session_id': session_id, 'qrcodeB64': img_bytes.decode()})
-    except Exception as e:
-        if form.has_error and 'username' in form.errors:
-            # set messages to be displayed in template
-            messages.error(request, form.errors['username'])
-            return redirect(request.path)
-        else:
+        try:
+            user = User.objects.get(username=form.cleaned_data['username'])
+            # generate QR with redirect url
+            host = request.get_host()
+            path = reverse('webapp:login_biometrics')
+            query = urlencode({'id': user.id})
+            url = f'https://{host}{path}?{query}'
+            qr = qrcode.QRCode(
+                version=1,
+                box_size=6,
+                border=3
+                )
+            qr.add_data(url)
+            qr.make(fit=True)
+            img = qr.make_image(fill='black', back_color='white')
+            # convert qr image to base64
+            buffered = BytesIO()
+            img.save(buffered, format="JPEG")
+            img_bytes = base64.b64encode(buffered.getvalue())
+            return JsonResponse({'id': user.id, 'qrcodeB64': img_bytes.decode()})
+        except Exception as e:
             logger.exception(e)
-            return HttpResponse(str(e), status=500)
+            return HttpResponse(status=500)
+    
+    
+class LoginRequestView(View):
+    """
+    Answer to a biometrics register request sending options to initiate the login.
+    """
+
+    def post(self, request):
+        try:
+            user_id = request.GET['id']
+        
+            # get registered user credentials and generate authentication options.
+            # For now each user is supposed to have exactly one credential,
+            # if we want more iterate over the query result and create a 
+            # PublicKeyCredentialDescriptor for each one
+            credentials = Credential.objects.get(user_id=user_id)
+            allow_credentials = [
+                PublicKeyCredentialDescriptor(id=base64url_to_bytes(credentials.credential_id)),
+                ]
+            
+            authentication_options = generate_authentication_options(
+                rp_id=RP_ID,
+                allow_credentials=allow_credentials,
+                user_verification=UserVerificationRequirement.REQUIRED,
+            )
+            
+            # save challenge in session to be verified later
+            request.session['challenge'] = bytes_to_base64url(authentication_options.challenge)
+
+            return JsonResponse(json.loads(options_to_json(authentication_options)))
+        except Exception as e:
+            logger.exception(e)
+            return HttpResponse(status=500)
+            
+
+class LoginResponseView(View):
+    """
+    Verifies correctness of client response and completes the login.
+    """
+    
+    def post(self, request):
+        credential = json.loads(request.POST['credential'])
+
+        # Login Response Verification
+        pass
