@@ -1,29 +1,52 @@
 import json
 import logging
+import base64
+import qrcode
+from io import BytesIO
+from urllib.parse import urlencode
 
 from django.http import HttpResponse
 from django.views.generic import TemplateView
-from django.contrib import messages
 from django.shortcuts import render, redirect
+from django.urls import reverse
 
-from authenticator.forms import LoginForm, RegistrationSessionForm
-from authenticator.views import loginMiddlewareView, registerMiddlewareView
+from authenticator.forms import LoginSessionForm, RegistrationSessionForm
+from authenticator.views import createSession
 
 logger = logging.getLogger('webapp.logger')
 
 
 class InputView(TemplateView):
-    response_fn = None
+    redir_path = None
+    
+    def generate_qr(self, host, path, session_id):
+            # generate QR with redirect url
+            params = urlencode({'id': session_id})
+            url = f'https://{host}{path}?{params}'
+            qr = qrcode.QRCode(
+                version=1,
+                box_size=6,
+                border=3
+                )
+            qr.add_data(url)
+            qr.make(fit=True)
+            img = qr.make_image(fill='black', back_color='white')
+            # convert qr image to base64
+            buffered = BytesIO()
+            img.save(buffered, format="JPEG")
+            img_bytes = base64.b64encode(buffered.getvalue())
+            return img_bytes.decode()
+        
     
     def get(self, request, *args, **kwargs):
         if 'id' in request.session:
-            id = request.session['id']
-            qrcodeB64 = request.session['qrcodeB64']
+            if self.redir_path is None:
+                return HttpResponse(status=500)
+            session_id = request.session['id']
             del request.session['id']
-            del request.session['qrcodeB64']
             context = {
-                'id': id,
-                'qrcodeB64': qrcodeB64,
+                'id': session_id,
+                'qrcodeB64': self.generate_qr(request.get_host(), reverse(self.redir_path), session_id),
             }
             return render(request, self.template_name, context=context)
         else:
@@ -31,11 +54,10 @@ class InputView(TemplateView):
             return render(request, self.template_name, context={'form': form,})
     
     def post(self, request, *args, **kwargs):
-        response = self.response_fn(request)
+        response = createSession(self.form_class, request)
 
         if response.status_code == 200:
             request.session['id'] = json.loads(response.content.decode('utf-8'))['id']
-            request.session['qrcodeB64'] = json.loads(response.content.decode('utf-8'))['qrcodeB64']
             return redirect(request.path)
         elif response.status_code == 302:
             return redirect(response.url)
@@ -46,7 +68,8 @@ class InputView(TemplateView):
 class RegisterView(InputView):
     form_class = RegistrationSessionForm
     template_name = 'webapp/register.html'
-    response_fn = registerMiddlewareView
+    redir_path = 'webapp:register_biometrics'
+    
 
 
 class RegisterBiometricsView(TemplateView):
@@ -54,9 +77,9 @@ class RegisterBiometricsView(TemplateView):
 
 
 class LoginView(InputView):
-    form_class = LoginForm
+    form_class = LoginSessionForm
     template_name = 'webapp/login.html'
-    response_fn = loginMiddlewareView
+    redir_path = 'webapp:login_biometrics'
 
 
 class LoginBiometricsView(TemplateView):
