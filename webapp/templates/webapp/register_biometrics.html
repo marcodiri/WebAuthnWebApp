@@ -81,10 +81,8 @@
           });
       })
       .fail(response => {
-        if (response.status === 302)
-          location.reload();
-        else 
-          console.error(response.responseText);
+        location.reload();
+        console.error(response.responseText);
       });
   });
 </script>

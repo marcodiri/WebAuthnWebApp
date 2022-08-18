@@ -12,6 +12,7 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.contrib.auth import authenticate
+from django.core.exceptions import ValidationError
 
 from webauthn import (
     generate_registration_options,
@@ -32,10 +33,10 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
     AuthenticationCredential,
 )
-from webauthn.helpers.exceptions import InvalidAuthenticationResponse
+from webauthn.helpers.exceptions import InvalidRegistrationResponse, InvalidAuthenticationResponse
 
-from authenticator.forms import LoginForm, TempSessionForm
-from .models import Credential, TempSession, User
+from authenticator.forms import LoginForm, RegistrationSessionForm
+from .models import Credential, RegistrationSession, User
 
 import logging
 
@@ -55,10 +56,10 @@ def registerMiddlewareView(caller, request):
     been confirmed by biometrics.
     """
 
-    form = TempSessionForm(request.POST)
+    form = RegistrationSessionForm(request.POST)
     try:
-        temp_session = form.save()
-        session_id = temp_session.id
+        registration_session = form.save()
+        session_id = registration_session.id
         # generate QR with redirect url
         host = request.get_host()
         path = reverse('webapp:register_biometrics')
@@ -97,14 +98,14 @@ class RegisterRequestView(View):
             password = request.POST['password']
             
             # check that temp session exists and password matches
-            temp_session = authenticate(request, username=session_id, password=password)
-            if not temp_session:
+            registration_session = authenticate(request, username=session_id, password=password)
+            if not registration_session:
                 messages.error(request, 'User could not be authenticated, try again.')
-                # response to ajax request, so cannot redirect directly. Do redirection on the client.
-                return HttpResponse(status=302)
+                # response to ajax request
+                return HttpResponse(status=401)
             
             user_id = uuid.uuid4().hex
-            user_name = temp_session.username
+            user_name = registration_session.username
             
             registration_options = generate_registration_options(
                 rp_id=RP_ID,
@@ -123,8 +124,13 @@ class RegisterRequestView(View):
             request.session['challenge'] = bytes_to_base64url(registration_options.challenge)
 
             return JsonResponse(json.loads(options_to_json(registration_options)))
+        except ValidationError as e:
+            logger.exception(e)
+            messages.error(request, "Invalid session")
+            return HttpResponse(status=401)
         except Exception as e:
             logger.exception(e)
+            messages.error(request, "Internal error")
             return HttpResponse(status=500)
             
 
@@ -137,36 +143,37 @@ class RegisterResponseView(View):
     def post(self, request):
         credential = json.loads(request.POST['credential'])
 
-        # Registration Response Verification
-        registration_verification = verify_registration_response(
-            credential=RegistrationCredential.parse_raw(
-                f"""{{
-                    "id": "{credential['id']}",
-                    "rawId": "{credential['rawId']}",
-                    "response": {{
-                        "attestationObject": "{credential['response']['attestationObject']}",
-                        "clientDataJSON": "{credential['response']['clientDataJSON']}"
-                    }},
-                    "type": "{credential['type']}"
-                }}"""
-            ),
-            expected_challenge=base64url_to_bytes(request.session['challenge']),
-            expected_origin=f"https://{RP_ID}:8000",
-            expected_rp_id=RP_ID,
-            require_user_verification=True,
-        )
-        del request.session['challenge']
-
-        session_id = request.session['session_id']
-        user_id = request.session['user_id']
         try:
-            temp_session = TempSession.objects.get(pk=session_id)
+            # Registration Response Verification
+            registration_verification = verify_registration_response(
+                credential=RegistrationCredential.parse_raw(
+                    f"""{{
+                        "id": "{credential['id']}",
+                        "rawId": "{credential['rawId']}",
+                        "response": {{
+                            "attestationObject": "{credential['response']['attestationObject']}",
+                            "clientDataJSON": "{credential['response']['clientDataJSON']}"
+                        }},
+                        "type": "{credential['type']}"
+                    }}"""
+                ),
+                expected_challenge=base64url_to_bytes(request.session['challenge']),
+                expected_origin=f"https://{RP_ID}:8000",
+                expected_rp_id=RP_ID,
+                require_user_verification=True,
+            )
+            del request.session['challenge']
+
+            session_id = request.session['session_id']
+            user_id = request.session['user_id']
+            
+            registration_session = RegistrationSession.objects.get(pk=session_id)
             # delete temp session
-            temp_session.delete()
+            registration_session.delete()
             request.session.flush()
             
-            new_user = User(id=user_id, username=temp_session.username)
-            new_user.password = temp_session.password
+            new_user = User(id=user_id, username=registration_session.username)
+            new_user.password = registration_session.password
             
             # save authenticator
             new_credential = Credential(
@@ -177,12 +184,16 @@ class RegisterResponseView(View):
             
             new_user.save()
             new_credential.save()
-            
+
+            return HttpResponse(status=200)
+        
+        except InvalidRegistrationResponse as e:
+            logger.exception(e)
+            messages.error(request, 'Authenticator could not be verified')
+            return HttpResponse(status=401)
         except Exception as e:
             logger.exception(e)
             return HttpResponse(status=500)
-
-        return HttpResponse(status=200)
 
 
 def loginMiddlewareView(caller, request):
@@ -250,6 +261,7 @@ class LoginRequestView(View):
             request.session['user_id'] = user_id
 
             return JsonResponse(json.loads(options_to_json(authentication_options)))
+        
         except Exception as e:
             logger.exception(e)
             return HttpResponse(status=500)

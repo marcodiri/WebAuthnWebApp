@@ -27,7 +27,7 @@ from django.contrib.auth.validators import ASCIIUsernameValidator
 #         return self.create_user(username, password)
 
 
-class User(AbstractBaseUser):
+class RegistrationSession(AbstractBaseUser):
     id = models.UUIDField(primary_key=True, editable=False)
     username = models.CharField(unique=True, max_length=10, validators=[ASCIIUsernameValidator])
     creation_time = models.DateTimeField(auto_now_add=True)
@@ -38,10 +38,19 @@ class User(AbstractBaseUser):
 
     def __str__(self):
         return '%s | %s' % (self.id, self.username)
+
+
+class User(AbstractBaseUser):
+    id = models.UUIDField(primary_key=True, editable=False)
+    username = models.CharField(unique=True, max_length=10, validators=[ASCIIUsernameValidator])
+    creation_time = models.DateTimeField(auto_now_add=True)
+
+    USERNAME_FIELD = 'username'
     
-    
-class TempSession(User):
-    pass
+    objects = BaseUserManager()
+
+    def __str__(self):
+        return '%s | %s' % (self.id, self.username)
 
 
 class Credential(models.Model):
@@ -54,3 +63,16 @@ class Credential(models.Model):
     
     def __str__(self):
         return '%s | %s | %s' % (self.user, self.credential_id, self.credential_public_key)
+
+
+class LoginSession(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False)
+    user = models.ForeignKey(
+        'User',
+        on_delete=models.CASCADE,
+    )
+    user_authenticated = models.BooleanField(default=False)
+    creation_time = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return '%s | %s | %s' % (self.id, self.user, self.user_authenticated)

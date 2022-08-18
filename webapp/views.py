@@ -6,7 +6,7 @@ from django.views.generic import TemplateView
 from django.contrib import messages
 from django.shortcuts import render, redirect
 
-from authenticator.forms import LoginForm, TempSessionForm
+from authenticator.forms import LoginForm, RegistrationSessionForm
 from authenticator.views import loginMiddlewareView, registerMiddlewareView
 
 logger = logging.getLogger('webapp.logger')
@@ -44,7 +44,7 @@ class InputView(TemplateView):
 
 
 class RegisterView(InputView):
-    form_class = TempSessionForm
+    form_class = RegistrationSessionForm
     template_name = 'webapp/register.html'
     response_fn = registerMiddlewareView
 
