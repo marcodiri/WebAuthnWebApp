@@ -12,6 +12,8 @@
 </head>
 
 <body>
+  <div id="login-result"></div>
+
   <script type="module">
     import { getCredential } from "{% static 'webapp/modules/client.js' %}";
     
@@ -51,18 +53,21 @@
               data: "credential="+JSON.stringify(credential)
             })
               .then(response => {
-                console.log("registration success");
+                console.log("login success");
+                $('#login-result').append("<p>Login successful, you may return to desktop.</p>")
               })
               .fail(response => {
                 console.error(response);
+                if (response.status === 401){
+                  $('#login-result').append("<p>Authenticator could not be validated</p>")
+                } else {
+                  $('#login-result').append(`<p>${response.responseText}</p>`)
+                }
               });
           });
       })
       .fail(response => {
-        if (response.status === 302)
-          location.reload();
-        else 
-          console.error(response.responseText);
+        console.error(response.responseText);
       });
     });
   </script>

@@ -299,7 +299,7 @@ class LoginResponseView(View):
         except InvalidAuthenticationResponse as e:
             logger.exception(e)
             messages.error(request, 'Authenticator could not be validated')
-            return HttpResponse(status=302)
+            return HttpResponse(status=401)
         except Exception as e:
             logger.exception(e)
             return HttpResponse(status=500)
