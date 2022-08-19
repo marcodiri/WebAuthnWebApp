@@ -1,6 +1,7 @@
 import json
 import logging
 import base64
+from urllib import request
 import qrcode
 from io import BytesIO
 from urllib.parse import urlencode
@@ -11,7 +12,7 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 
 from authenticator.forms import LoginSessionForm, RegistrationSessionForm
-from authenticator.views import createSession
+from authenticator.views import createSession, userLogin
 
 
 logger = logging.getLogger('webapp.logger')
@@ -86,3 +87,14 @@ class LoginView(InputView):
 
 class LoginBiometricsView(TemplateView):
     template_name = 'webapp/login_biometrics.html'
+
+
+class IndexView(TemplateView):
+    template_name = 'webapp/index.html'
+    
+    def get(self, request):
+        if 'id' in request.GET:
+            session_id = request.GET['id']
+            userLogin(request, session_id)
+            user = request.user
+        return render(request, self.template_name)

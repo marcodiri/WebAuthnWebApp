@@ -25,7 +25,7 @@
         {% endfor %}
     </ul>
     {% endif %}
-  <div><p>Don't have an account? <a href="register">Register here</a>.</p></div>
+  <div><p>Don't have an account? <a href="/register">Register here</a>.</p></div>
   {% endif %}
   {% if qrcodeB64 %}
   <div><p>Scan this QR with your mobile device to authenticate with your fingerprint</p></div>
@@ -84,8 +84,7 @@
         if (response === "completed") {
           clearInterval(interval);
           console.log("login successful");
-          // TODO: change to user page
-          window.location.href = "https://example.com";
+          window.location.href = "/?id={{ id }}";
         }
       });
     }

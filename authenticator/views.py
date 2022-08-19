@@ -274,13 +274,11 @@ class PollingView(View):
     to know if a registration/login was successful.
     """
     
-    def post(self, request):
+    async def post(self, request):
         try:
             session_id = request.POST['id']
-            session = LoginSession.objects.get(id=session_id)
+            session = await LoginSession.objects.aget(id=session_id)
             if session.user_authenticated:
-                login(request, session.user)
-                session.delete()
                 return HttpResponse("completed", status=200)
             else:
                 return HttpResponse("not completed", status=200)
@@ -289,3 +287,16 @@ class PollingView(View):
         except Exception as e:
             logger.exception(e)
             return HttpResponse(status=500)
+
+
+def userLogin(request, session_id):
+    try:
+        session = LoginSession.objects.get(id=session_id)
+        if session.user_authenticated:
+            login(request, session.user)
+            session.delete()
+    except LoginSession.DoesNotExist as e:
+        return HttpResponse(status=200)
+    except Exception as e:
+        logger.exception(e)
+        return HttpResponse(status=500)
