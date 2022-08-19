@@ -32,16 +32,16 @@ class User(AbstractBaseUser):
     username = models.CharField(unique=True, max_length=10, validators=[ASCIIUsernameValidator])
     creation_time = models.DateTimeField(auto_now_add=True)
 
-    USERNAME_FIELD = 'id'
+    USERNAME_FIELD = 'username'
     
     objects = BaseUserManager()
 
     def __str__(self):
         return '%s | %s' % (self.id, self.username)
-    
-    
-class TempSession(User):
-    pass
+
+
+class RegistrationSession(User):
+    USERNAME_FIELD = 'id'
 
 
 class Credential(models.Model):
@@ -54,3 +54,16 @@ class Credential(models.Model):
     
     def __str__(self):
         return '%s | %s | %s' % (self.user, self.credential_id, self.credential_public_key)
+
+
+class LoginSession(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False)
+    user = models.ForeignKey(
+        'User',
+        on_delete=models.CASCADE,
+    )
+    user_authenticated = models.BooleanField(default=False)
+    creation_time = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return '%s | %s | %s' % (self.id, self.user, self.user_authenticated)

@@ -1,6 +1,6 @@
 import { WebAuthnHelpers } from "./WebAuthnHelpers.js";
 
-const registerCredential = async (options) => {
+const createCredential = async (options) => {
     // convert fields WebAuthn expects as ArrayBuffer
     options.challenge = WebAuthnHelpers.coerceToArrayBuffer(options.challenge);
     options.user.id = WebAuthnHelpers.coerceToArrayBuffer(options.user.id);
@@ -31,4 +31,42 @@ const registerCredential = async (options) => {
     return credential;
 }
 
-export { registerCredential };
+const getCredential = async (options) => {
+    // convert fields WebAuthn expects as ArrayBuffer
+    options.challenge = WebAuthnHelpers.coerceToArrayBuffer(options.challenge);
+    options.allowCredentials = options.allowCredentials.map((c) => {
+        c.id = WebAuthnHelpers.coerceToArrayBuffer(c.id);
+        return c;
+    });
+    const cred = await navigator.credentials.get({
+        publicKey: options
+    });
+
+    const credential = {};
+    credential.id = cred.id;
+    credential.rawId = WebAuthnHelpers.coerceToBase64Url(cred.rawId);
+    credential.type = cred.type;
+
+    if (cred.response) {
+        const clientDataJSON =
+            WebAuthnHelpers.coerceToBase64Url(cred.response.clientDataJSON);
+        const authenticatorData =
+            WebAuthnHelpers.coerceToBase64Url(cred.response.authenticatorData);
+        const signature = 
+            WebAuthnHelpers.coerceToBase64Url(cred.response.signature);
+        const userHandle = cred.response.userHandle ? 
+            cred.response.userHandleWebAuthnHelpers.coerceToBase64Url(cred.response.userHandle)
+            : null;
+      
+        credential.response = {
+            clientDataJSON,
+            authenticatorData,
+            signature,
+            userHandle,      
+        };
+    }
+
+    return credential;
+}
+
+export { createCredential, getCredential };
