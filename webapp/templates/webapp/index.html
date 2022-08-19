@@ -14,8 +14,9 @@
 <body>
   {% if user.is_authenticated %}
   <p>authenticated</p>
+  <a href="/logout">Logout</a>
   {% else %}
-  <a href="login">Login</a>
+  <a href="/login">Login</a>
   {% endif %}
   {% if messages %}
   <ul class="messages">

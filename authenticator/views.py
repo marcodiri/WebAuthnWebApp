@@ -77,7 +77,8 @@ class RegisterRequestView(View):
             password = request.POST['password']
             
             # check that temp session exists and password matches
-            registration_session = authenticate(request, username=session_id, password=password)
+            username = RegistrationSession.objects.get(id=session_id).username
+            registration_session = authenticate(request, username=username, password=password)
             if not registration_session:
                 messages.error(request, 'User could not be authenticated, try again.')
                 # response to ajax request
@@ -103,8 +104,10 @@ class RegisterRequestView(View):
             request.session['challenge'] = bytes_to_base64url(registration_options.challenge)
 
             return JsonResponse(json.loads(options_to_json(registration_options)))
+        except RegistrationSession.DoesNotExist as e:
+            messages.error(request, "Invalid session")
+            return HttpResponse(status=401)
         except ValidationError as e:
-            logger.exception(e)
             messages.error(request, "Invalid session")
             return HttpResponse(status=401)
         except Exception as e:

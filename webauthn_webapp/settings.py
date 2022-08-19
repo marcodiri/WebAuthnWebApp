@@ -18,7 +18,7 @@ environ.Env.read_env()
 
 RP_ID = env('HOSTNAME')
 RP_NAME = env('RP_NAME')
-AUTH_USER_MODEL = 'authenticator.RegistrationSession'
+AUTH_USER_MODEL = 'authenticator.User'
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

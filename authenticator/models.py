@@ -27,19 +27,6 @@ from django.contrib.auth.validators import ASCIIUsernameValidator
 #         return self.create_user(username, password)
 
 
-class RegistrationSession(AbstractBaseUser):
-    id = models.UUIDField(primary_key=True, editable=False)
-    username = models.CharField(unique=True, max_length=10, validators=[ASCIIUsernameValidator])
-    creation_time = models.DateTimeField(auto_now_add=True)
-
-    USERNAME_FIELD = 'id'
-    
-    objects = BaseUserManager()
-
-    def __str__(self):
-        return '%s | %s' % (self.id, self.username)
-
-
 class User(AbstractBaseUser):
     id = models.UUIDField(primary_key=True, editable=False)
     username = models.CharField(unique=True, max_length=10, validators=[ASCIIUsernameValidator])
@@ -51,6 +38,10 @@ class User(AbstractBaseUser):
 
     def __str__(self):
         return '%s | %s' % (self.id, self.username)
+
+
+class RegistrationSession(User):
+    USERNAME_FIELD = 'id'
 
 
 class Credential(models.Model):

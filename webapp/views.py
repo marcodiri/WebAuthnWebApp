@@ -10,6 +10,7 @@ from django.http import HttpResponse
 from django.views.generic import TemplateView
 from django.shortcuts import render, redirect
 from django.urls import reverse
+from django.contrib.auth import logout
 
 from authenticator.forms import LoginSessionForm, RegistrationSessionForm
 from authenticator.views import createSession, userLogin
@@ -98,3 +99,10 @@ class IndexView(TemplateView):
             userLogin(request, session_id)
             user = request.user
         return render(request, self.template_name)
+
+
+def userLogout(request):
+    if request.user.is_authenticated:
+        logout(request)
+    return redirect("/")
+
