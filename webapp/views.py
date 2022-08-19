@@ -13,6 +13,7 @@ from django.urls import reverse
 from authenticator.forms import LoginSessionForm, RegistrationSessionForm
 from authenticator.views import createSession
 
+
 logger = logging.getLogger('webapp.logger')
 
 
@@ -46,7 +47,9 @@ class InputView(TemplateView):
             del request.session['id']
             context = {
                 'id': session_id,
-                'qrcodeB64': self.generate_qr(request.get_host(), reverse(self.redir_path), session_id),
+                'qrcodeB64': self.generate_qr(request.get_host(), 
+                                              reverse(self.redir_path), 
+                                              session_id),
             }
             return render(request, self.template_name, context=context)
         else:
@@ -70,7 +73,6 @@ class RegisterView(InputView):
     template_name = 'webapp/register.html'
     redir_path = 'webapp:register_biometrics'
     
-
 
 class RegisterBiometricsView(TemplateView):
     template_name = 'webapp/register_biometrics.html'

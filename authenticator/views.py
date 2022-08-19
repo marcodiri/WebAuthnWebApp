@@ -2,11 +2,11 @@ import json
 import uuid
 
 from django.views.generic.base import View
-from django.http.response import HttpResponse, HttpResponseRedirect, JsonResponse
+from django.http.response import HttpResponse, JsonResponse
 from django.conf import settings
 from django.contrib import messages
 from django.shortcuts import redirect
-from django.contrib.auth import authenticate
+from django.contrib.auth import authenticate, login
 from django.core.exceptions import ValidationError
 
 from webauthn import (
@@ -263,6 +263,29 @@ class LoginResponseView(View):
             logger.exception(e)
             messages.error(request, 'Authenticator could not be validated')
             return HttpResponse(status=401)
+        except Exception as e:
+            logger.exception(e)
+            return HttpResponse(status=500)
+
+
+class PollingView(View):
+    """
+    Views responding to polling requests from desktop client 
+    to know if a registration/login was successful.
+    """
+    
+    def post(self, request):
+        try:
+            session_id = request.POST['id']
+            session = LoginSession.objects.get(id=session_id)
+            if session.user_authenticated:
+                login(request, session.user)
+                session.delete()
+                return HttpResponse("completed", status=200)
+            else:
+                return HttpResponse("not completed", status=200)
+        except LoginSession.DoesNotExist as e:
+            return HttpResponse("not completed", status=200)
         except Exception as e:
             logger.exception(e)
             return HttpResponse(status=500)

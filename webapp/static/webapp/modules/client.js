@@ -54,8 +54,9 @@ const getCredential = async (options) => {
             WebAuthnHelpers.coerceToBase64Url(cred.response.authenticatorData);
         const signature = 
             WebAuthnHelpers.coerceToBase64Url(cred.response.signature);
-        const userHandle = 
-            WebAuthnHelpers.coerceToBase64Url(cred.response.userHandle);
+        const userHandle = cred.response.userHandle ? 
+            cred.response.userHandleWebAuthnHelpers.coerceToBase64Url(cred.response.userHandle)
+            : null;
       
         credential.response = {
             clientDataJSON,
