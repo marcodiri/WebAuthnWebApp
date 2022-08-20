@@ -148,13 +148,16 @@ class RegisterResponseView(View):
 
             session_id = request.session['session_id']
             user_id = request.session['user_id']
-            
-            registration_session = RegistrationSession.objects.get(pk=session_id)
-            # delete temp session
-            registration_session.delete()
             request.session.flush()
             
-            new_user = User(id=user_id, username=registration_session.username)
+            registration_session = RegistrationSession.objects.get(pk=session_id)
+            username = registration_session.username
+            # set session status
+            registration_session.username = user_id
+            registration_session.completed = True
+            registration_session.save()
+            
+            new_user = User(id=user_id, username=username)
             new_user.password = registration_session.password
             
             # save authenticator
@@ -258,7 +261,7 @@ class LoginResponseView(View):
             request.session.flush()
 
             # set session status
-            login_session.user_authenticated = True
+            login_session.completed = True
             login_session.save()
             
             return HttpResponse(status=200)
@@ -279,12 +282,19 @@ class PollingView(View):
     
     async def post(self, request):
         try:
+            session_type = request.POST['type']
             session_id = request.POST['id']
-            session = await LoginSession.objects.aget(id=session_id)
-            if session.user_authenticated:
+            session = None
+            if session_type == "registration":
+                session = await RegistrationSession.objects.aget(id=session_id)
+            elif session_type == "login":
+                session = await LoginSession.objects.aget(id=session_id)
+            if session is not None and session.completed:
                 return HttpResponse("completed", status=200)
             else:
                 return HttpResponse("not completed", status=200)
+        except RegistrationSession.DoesNotExist as e:
+            return HttpResponse("not completed", status=200)
         except LoginSession.DoesNotExist as e:
             return HttpResponse("not completed", status=200)
         except Exception as e:
@@ -292,12 +302,28 @@ class PollingView(View):
             return HttpResponse(status=500)
 
 
+def registrationCompleted(request, session_id):
+    try:
+        session = RegistrationSession.objects.get(id=session_id)
+        if session.completed:
+            session.delete()
+            return HttpResponse(True, status=200)
+        return HttpResponse(False, status=200)
+    except RegistrationSession.DoesNotExist as e:
+        return HttpResponse(False, status=200)
+    except Exception as e:
+        logger.exception(e)
+        return HttpResponse(status=500)
+    
+
+
 def userLogin(request, session_id):
     try:
         session = LoginSession.objects.get(id=session_id)
-        if session.user_authenticated:
+        if session.completed:
             login(request, session.user)
             session.delete()
+        return HttpResponse(status=200)
     except LoginSession.DoesNotExist as e:
         return HttpResponse(status=200)
     except Exception as e:

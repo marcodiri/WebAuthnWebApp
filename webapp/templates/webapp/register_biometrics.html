@@ -27,6 +27,8 @@
   </ul>
   {% endif %}
 
+  
+  <div id="registration-result"></div>
 </body>
 
 </html>
@@ -74,6 +76,8 @@
             })
               .then(response => {
                 console.log("registration success");
+                $('#register_biometrics_form').hide();
+                $('#registration-result').append("<p>Registration successful, you may return to desktop.</p>");
               })
               .fail(response => {
                 console.error(response);

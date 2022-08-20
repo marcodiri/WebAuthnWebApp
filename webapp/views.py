@@ -13,7 +13,7 @@ from django.urls import reverse
 from django.contrib.auth import logout
 
 from authenticator.forms import LoginSessionForm, RegistrationSessionForm
-from authenticator.views import createSession, userLogin
+from authenticator.views import createSession, registrationCompleted, userLogin
 
 
 logger = logging.getLogger('webapp.logger')
@@ -88,6 +88,20 @@ class LoginView(InputView):
 
 class LoginBiometricsView(TemplateView):
     template_name = 'webapp/login_biometrics.html'
+
+
+class RegistrationCompletedView(TemplateView):
+    template_name = 'webapp/registration_completed.html'
+    
+    def get(self, request):
+        status = False
+        if "id" in request.GET:
+            session_id = request.GET['id']
+            status = registrationCompleted(request, session_id)
+            context = {'status': status}
+            return render(request, self.template_name, context=context)
+        else:
+            return redirect("/register")
 
 
 class IndexView(TemplateView):

@@ -18,13 +18,13 @@
     {{ form }}
     <input type="submit" id="loginBtn" class="btn btn-primary" value="Login with biometrics">
   </form>
-    {% if messages %}
-    <ul class="messages">
-      {% for message in messages %}
-      <li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
+  {% if messages %}
+  <ul class="messages">
+    {% for message in messages %}
+    <li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
+      {% endfor %}
+  </ul>
+  {% endif %}
   <div><p>Don't have an account? <a href="/register">Register here</a>.</p></div>
   {% endif %}
   {% if qrcodeB64 %}
@@ -78,7 +78,7 @@
         url: "{% url 'authenticator:session_completed' %}",
         type: "POST",
         processData: false,
-        data: "id={{ id }}"
+        data: "type=login&id={{ id }}"
       }).then(response => {
         console.log(response);
         if (response === "completed") {
