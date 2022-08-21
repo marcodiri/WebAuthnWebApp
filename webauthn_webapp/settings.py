@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 
 from pathlib import Path
 import environ
+from django.contrib.messages import constants as messages
 
 env = environ.Env()
 environ.Env.read_env()
@@ -137,3 +138,11 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+MESSAGE_TAGS = {
+        messages.DEBUG: 'list-group-item',
+        messages.INFO: 'list-group-item',
+        messages.SUCCESS: 'list-group-item',
+        messages.WARNING: 'list-group-item',
+        messages.ERROR: 'list-group-item list-group-item-danger',
+ }

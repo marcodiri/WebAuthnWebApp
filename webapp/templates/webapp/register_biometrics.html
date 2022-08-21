@@ -3,10 +3,12 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
   {% load static %}
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"
-    integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+  <script src="{% static 'webapp/js/jquery-3.6.0.min.js' %}"></script>
+  <link rel="stylesheet" href="{% static 'webapp/css/bootstrap.min.css' %}">
+  <link rel="stylesheet" href="{% static 'webapp/css/style.css' %}">
 
   <title>Register</title>
 </head>
@@ -19,13 +21,7 @@
     <input type="submit" id="submitBtn" class="btn btn-primary" value="Proceed">
   </form>
 
-  {% if messages %}
-  <ul class="messages">
-    {% for message in messages %}
-    <li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
-      {% endfor %}
-  </ul>
-  {% endif %}
+  {% include 'webapp/includes/messages.html' %}
 
   
   <div id="registration-result"></div>
@@ -34,7 +30,7 @@
 </html>
 
 <script type="module">
-  import { createCredential } from "{% static 'webapp/modules/client.js' %}";
+  import { createCredential } from "{% static 'webapp/js/modules/client.js' %}";
 
   if (window.PublicKeyCredential) {
     PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
