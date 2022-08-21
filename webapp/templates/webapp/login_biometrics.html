@@ -14,7 +14,9 @@
 </head>
 
 <body>
-  <div id="login-result"></div>
+  <div class="container pt-4 text-center" style="max-width: 320px;">
+    <div id="login-result"></div>
+  </div>
 
   <script type="module">
     import { getCredential } from "{% static 'webapp/js/modules/client.js' %}";
@@ -24,54 +26,60 @@
         .then(uvpaa => {
           if (uvpaa) {
             console.log("biometric sensor available");
+            $('#login-result').attr('class', 'alert alert-primary').text("Please authenticate with biometrics when prompted.");
+            $(document).ready(() => {
+              const urlParams = new URLSearchParams(window.location.search);
+              $.ajaxSetup({
+                headers: {
+                  "X-CSRFToken": '{{ csrf_token }}'
+                }
+              });
+              $.ajax({
+                url: `{% url 'authenticator:login_request' %}?id=${urlParams.get('id')}`,
+                type: "POST",
+                processData: false,
+                dataType: "json"
+              }).then(options => {
+                getCredential(options)
+                  .then(credential => {
+                    $.ajax({
+                      url: "{% url 'authenticator:login_response' %}",
+                      type: "POST",
+                      processData: false,
+                      data: "credential="+JSON.stringify(credential)
+                    })
+                      .then(response => {
+                        console.log("login success");
+                        $('#login-result').attr('class', 'alert alert-success').text("Login successful, you may close this page and return to desktop.");
+                      })
+                      .fail(response => {
+                        console.error(response);
+                        if (response.status === 401){
+                          $('#login-result').attr('class', 'alert alert-danger').text("Authenticator could not be validated.");
+                        } else {
+                          $('#login-result').attr('class', 'alert alert-danger').text(`${response.responseText}`);
+                        }
+                      });
+                  })
+                  .catch(error => {
+                    console.log(error);
+                    $('#login-result').attr('class', 'alert alert-danger').text("The operation either timed out or was not allowed.");
+                  });
+              })
+              .fail(response => {
+                console.error(response.responseText);
+                $('#login-result').attr('class', 'alert alert-danger').text("Error.");
+              });
+            });
           } else {
-            // TODO: show error to user
             console.log("biometric sensor not available");
+            $('#login-result').attr('class', 'alert alert-danger').text("Biometric sensor not available.");
           }
         });
     } else {
       console.log("webauthn not supported");
+      $('#login-result').attr('class', 'alert alert-danger').text("Webauthn not supported.");
     }
-
-    $(document).ready(() => {
-      const urlParams = new URLSearchParams(window.location.search);
-      $.ajaxSetup({
-        headers: {
-          "X-CSRFToken": '{{ csrf_token }}'
-        }
-      });
-      $.ajax({
-        url: `{% url 'authenticator:login_request' %}?id=${urlParams.get('id')}`,
-        type: "POST",
-        processData: false,
-        dataType: "json"
-      }).then(options => {
-        getCredential(options)
-          .then(credential => {
-            $.ajax({
-              url: "{% url 'authenticator:login_response' %}",
-              type: "POST",
-              processData: false,
-              data: "credential="+JSON.stringify(credential)
-            })
-              .then(response => {
-                console.log("login success");
-                $('#login-result').append("<p>Login successful, you may return to desktop.</p>");
-              })
-              .fail(response => {
-                console.error(response);
-                if (response.status === 401){
-                  $('#login-result').append("<p>Authenticator could not be validated</p>");
-                } else {
-                  $('#login-result').append(`<p>${response.responseText}</p>`);
-                }
-              });
-          });
-      })
-      .fail(response => {
-        console.error(response.responseText);
-      });
-    });
   </script>
 </body>
 
