@@ -16,6 +16,9 @@
 <body>
   <div class="container pt-4 text-center" style="max-width: 320px;">
     <h2 class="mb-4">Register</h2>
+    {% if user.is_authenticated %}
+    <div class="alert alert-primary">Already logged in, go to <a href="{% url 'webapp:index' %}">user profile</a></b>.</div>
+    {% else %}
     {% if form %}
     <div id="form-wrapper" class="p-2 bg-light rounded border text-start">
       <form id="registration_form" method="POST">
@@ -28,6 +31,7 @@
     {% include 'webapp/includes/messages.html' %}
 
     <p class="mt-3 p-2 rounded border">Already registered? <a href="/login">Login here</a>.</p>
+    {% endif %}
     {% endif %}
     
     {% if qrcodeB64 %}

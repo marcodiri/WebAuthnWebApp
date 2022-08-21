@@ -14,14 +14,23 @@
 </head>
 
 <body>
-  {% if user.is_authenticated %}
-  <p>Logged in as <b>{{ user.username }}</b></p>
-  <a href="/logout">Logout</a>
-  {% else %}
-  <a href="/login">Login</a>
-  {% endif %}
+  <div class="container pt-4 text-center">
+    {% if user.is_authenticated %}
+    <h2 class="mb-4">User profile</h2>
+    <div id="wrapper" class="p-2 bg-light rounded border">
+      <div class="alert alert-primary">Logged in as <b>{{ user.username }}</b>.</div>
+      <a class="btn btn-secondary" role="button" href="/logout">Logout</a>
+    </div>
+    {% else %}
+    <h2 class="mb-4">Index</h2>
+    <div id="wrapper" class="p-2 bg-light rounded border">
+      Please <a class="btn btn-primary btn-sm" role="button" href="/login">Login</a> or
+      <a class="btn btn-secondary btn-sm" role="button" href="/register">Register</a> to access the user panel.
+    </div>
+    {% endif %}
 
-  {% include 'webapp/includes/messages.html' %}
+    {% include 'webapp/includes/messages.html' %}
+  </div>
 </body>
 
 </html>
