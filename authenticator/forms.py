@@ -55,6 +55,12 @@ class RegistrationSessionForm(SessionForm):
         if commit:
             registration_session.save()
         return registration_session
+    
+class RegisterBiometricsForm(forms.Form):
+    password = forms.CharField(
+        label='Password chosen during registration',
+        widget=CustomPasswordInput(attrs={'class':'form-control mb-3'})
+    )
 
 
 class LoginSessionForm(SessionForm):

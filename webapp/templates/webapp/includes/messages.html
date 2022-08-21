@@ -1,5 +1,5 @@
 {% if messages %}
-<ul class="messages mt-3 text-start list-group list-group-numbered">
+<ul id="messages" class="messages mt-3 text-start list-group">
     {% for message in messages %}
     <li{% if message.tags %} class="{{ message.tags }}" {% endif %}>{{ message }}</li>
     {% endfor %}

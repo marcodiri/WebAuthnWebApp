@@ -14,17 +14,24 @@
 </head>
 
 <body>
-  <form id="register_biometrics_form">
-    {% csrf_token %}
-    <label for="password">Type the password chosen during registration</label>
-    <input type="password" name="password">
-    <input type="submit" id="submitBtn" class="btn btn-primary" value="Proceed">
-  </form>
+  <div class="container pt-4 text-center" style="max-width: 320px;">
+    <h2 class="mb-4">Register</h2>
+    {% if form %}
+    <div id="wrapper">
+      <div id="form-wrapper" class="p-2 bg-light rounded border text-start">
+        <form id="register_biometrics_form" method="POST">
+          {% csrf_token %}
+          {{ form }}
+          <input type="submit" id="submitBtn" class="btn btn-primary w-100" value="Proceed">
+        </form>
+      </div>
 
-  {% include 'webapp/includes/messages.html' %}
-
-  
-  <div id="registration-result"></div>
+      {% include 'webapp/includes/messages.html' %}
+    </div>
+    {% endif %}
+    
+    <div id="registration-result"></div>
+  </div>
 </body>
 
 </html>
@@ -37,52 +44,58 @@
       .then(uvpaa => {
         if (uvpaa) {
           console.log("biometric sensor available");
+          $(document).on("submit", "#register_biometrics_form", (e) => {
+            e.preventDefault();
+            const urlParams = new URLSearchParams(window.location.search);
+        
+            const $this = $(e.target)
+            let post_data = $this.serialize();
+            $.ajax({
+              url: `{% url 'authenticator:register_request' %}?id=${urlParams.get('id')}`,
+              type: "POST",
+              processData: false,
+              dataType: "json",
+              data: post_data
+            })
+              .done(options => {
+                createCredential(options)
+                  .then(credential => {
+                    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    $.ajax({
+                      url: "{% url 'authenticator:register_response' %}",
+                      type: "POST",
+                      headers: {'X-CSRFToken': csrftoken},
+                      processData: false,
+                      data: "credential="+JSON.stringify(credential)
+                    })
+                      .then(response => {
+                        console.log("registration success");
+                        $('#wrapper').hide();
+                        $('#registration-result').attr('class', 'alert alert-success').text("Registration successful, you may close this page and return to desktop.");
+                      })
+                      .fail(response => {
+                        console.error(response);
+                        $('#registration-result').attr('class', 'mt-3 text-start alert alert-danger').text(`${response.responseText}`);
+                      });
+                  })
+                  .catch(error => {
+                    console.log(error);
+                    $('#messages').remove();
+                    $('#registration-result').attr('class', 'mt-3 text-start alert alert-danger').text("The operation either timed out or was not allowed.");
+                  });
+              })
+              .fail(response => {
+                location.reload();
+                console.error(response.responseText);
+              });
+          });
         } else {
-          // TODO: show error to user
           console.log("biometric sensor not available");
+          $('#wrapper').remove();
+          $('#registration-result').attr('class', 'mt-3 text-start alert alert-danger').text("Biometric sensor not available.");
         }
       });
   } else {
     console.log("webauthn not supported");
   }
-
-  $(document).on("submit", "#register_biometrics_form", (e) => {
-    e.preventDefault();
-    const urlParams = new URLSearchParams(window.location.search);
-
-    const $this = $(e.target)
-    let post_data = $this.serialize();
-    $.ajax({
-      url: `{% url 'authenticator:register_request' %}?id=${urlParams.get('id')}`,
-      type: "POST",
-      processData: false,
-      dataType: "json",
-      data: post_data
-    })
-      .done(options => {
-        createCredential(options)
-          .then(credential => {
-            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-            $.ajax({
-              url: "{% url 'authenticator:register_response' %}",
-              type: "POST",
-              headers: {'X-CSRFToken': csrftoken},
-              processData: false,
-              data: "credential="+JSON.stringify(credential)
-            })
-              .then(response => {
-                console.log("registration success");
-                $('#register_biometrics_form').hide();
-                $('#registration-result').append("<p>Registration successful, you may return to desktop.</p>");
-              })
-              .fail(response => {
-                console.error(response);
-              });
-          });
-      })
-      .fail(response => {
-        location.reload();
-        console.error(response.responseText);
-      });
-  });
 </script>

@@ -10,13 +10,17 @@
   <link rel="stylesheet" href="{% static 'webapp/css/bootstrap.min.css' %}">
   <link rel="stylesheet" href="{% static 'webapp/css/style.css' %}">
 
-  <title>Login</title>
+  <title>Register</title>
 </head>
 
 <body>
-  {% if status %}
-  <p>Registration completed, you may now <a href="/login">Login</a></p>
-  {% endif %}
+  <div class="container pt-4 text-center" style="max-width: 320px;">
+    {% if status == "True" %}
+    <div class="alert alert-success">Registration completed, you may now <a href="/login">Login</a>.</div>
+    {% else %}
+    <div class="alert alert-danger">Complete registration <a href="/register">here</a>.</div>
+    {% endif %}
+  </div>
 
   {% include 'webapp/includes/messages.html' %}
 </body>

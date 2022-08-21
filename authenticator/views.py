@@ -313,7 +313,7 @@ def registrationCompleted(request, session_id):
         return HttpResponse(False, status=200)
     except Exception as e:
         logger.exception(e)
-        return HttpResponse(status=500)
+        return HttpResponse(False, status=500)
     
 
 

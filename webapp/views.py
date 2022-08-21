@@ -12,7 +12,7 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib.auth import logout
 
-from authenticator.forms import LoginSessionForm, RegistrationSessionForm
+from authenticator.forms import LoginSessionForm, RegisterBiometricsForm, RegistrationSessionForm
 from authenticator.views import createSession, registrationCompleted, userLogin
 
 
@@ -33,7 +33,7 @@ class InputView(TemplateView):
                 )
             qr.add_data(url)
             qr.make(fit=True)
-            img = qr.make_image(fill='black', back_color='white')
+            img = qr.make_image(fill='black', back_color=(248, 249, 250))
             # convert qr image to base64
             buffered = BytesIO()
             img.save(buffered, format="JPEG")
@@ -77,7 +77,12 @@ class RegisterView(InputView):
     
 
 class RegisterBiometricsView(TemplateView):
+    form_class = RegisterBiometricsForm
     template_name = 'webapp/register_biometrics.html'
+    
+    def get(self, request, *args, **kwargs):
+        form = self.form_class()
+        return render(request, self.template_name, context={'form': form,})
 
 
 class LoginView(InputView):
@@ -97,7 +102,7 @@ class RegistrationCompletedView(TemplateView):
         status = False
         if "id" in request.GET:
             session_id = request.GET['id']
-            status = registrationCompleted(request, session_id)
+            status = registrationCompleted(request, session_id).content.decode()
             context = {'status': status}
             return render(request, self.template_name, context=context)
         else:
