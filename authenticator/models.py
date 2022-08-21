@@ -41,6 +41,8 @@ class User(AbstractBaseUser):
 
 
 class RegistrationSession(User):
+    completed = models.BooleanField(default=False)
+    
     USERNAME_FIELD = 'id'
 
 
@@ -62,8 +64,8 @@ class LoginSession(models.Model):
         'User',
         on_delete=models.CASCADE,
     )
-    user_authenticated = models.BooleanField(default=False)
+    completed = models.BooleanField(default=False)
     creation_time = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return '%s | %s | %s' % (self.id, self.user, self.user_authenticated)
+        return '%s | %s | %s' % (self.id, self.user, self.completed)

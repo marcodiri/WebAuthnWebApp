@@ -1,18 +1,38 @@
 import uuid
 from django import forms
+from django.forms.widgets import Input
 from .models import RegistrationSession, LoginSession, User
+
+
+class CustomInput(Input):
+    def get_context(self, name, value, attrs):
+        context = super(CustomInput, self).get_context(name, value, attrs)
+        if context['widget']['attrs'].get('name') is not None:
+            context['widget']['name'] = context['widget']['attrs']['name']
+        return context
+
+
+class CustomTextInput(forms.TextInput, CustomInput):
+    pass
+
+
+class CustomPasswordInput(forms.PasswordInput, CustomInput):
+    pass
 
 
 class SessionForm(forms.ModelForm):
     username = forms.RegexField(
         max_length=10, regex=r'^[\w.@+-]+$',
-        error_messages = {'invalid': "Username may be max 10 characters and may contain only letters, numbers and @/./+/-/_."}
+        error_messages = {'invalid': "Username may be max 10 characters and may contain only letters, numbers and @/./+/-/_."},
+        widget=CustomTextInput(attrs={'class':'form-control mb-3'})
     )
-    
 
 
 class RegistrationSessionForm(SessionForm):
-    password = forms.CharField(label='Password', widget=forms.PasswordInput)
+    password = forms.CharField(
+        label='Password',
+        widget=CustomPasswordInput(attrs={'class':'form-control mb-3'})
+    )
 
     class Meta:
         model = RegistrationSession
@@ -35,6 +55,12 @@ class RegistrationSessionForm(SessionForm):
         if commit:
             registration_session.save()
         return registration_session
+    
+class RegisterBiometricsForm(forms.Form):
+    password = forms.CharField(
+        label='Password chosen during registration',
+        widget=CustomPasswordInput(attrs={'class':'form-control mb-3'})
+    )
 
 
 class LoginSessionForm(SessionForm):
