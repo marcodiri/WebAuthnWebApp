@@ -81,7 +81,12 @@
                   .catch(error => {
                     console.log(error);
                     $('#messages').remove();
-                    $('#registration-result').attr('class', 'mt-3 text-start alert alert-danger').text("The operation either timed out or was not allowed.");
+                    console.log(error);
+                    const $rr = $('#registration-result');
+                    $rr.attr('class', 'mt-3 text-start alert alert-danger').text(error);
+                    if (error.name === "NotSupportedError") {
+                      $rr.text($rr.text()+" Please try a different browser.");
+                    }
                   });
               })
               .fail(response => {

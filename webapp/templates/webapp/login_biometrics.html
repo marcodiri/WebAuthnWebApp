@@ -63,7 +63,11 @@
                   })
                   .catch(error => {
                     console.log(error);
-                    $('#login-result').attr('class', 'alert alert-danger').text("The operation either timed out or was not allowed.");
+                    const $lr = $('#login-result');
+                    $lr.attr('class', 'alert alert-danger').text(error);
+                    if (error.name === "NotSupportedError") {
+                      $lr.text($lr.text()+" Please try a different browser.");
+                    }
                   });
               })
               .fail(response => {
