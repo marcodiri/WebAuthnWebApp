@@ -1,5 +1,6 @@
 import json
 import uuid
+import logging
 
 from django.views.generic.base import View
 from django.http.response import HttpResponse, JsonResponse
@@ -8,6 +9,7 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.contrib.auth import authenticate, login
 from django.core.exceptions import ValidationError
+from django.conf import settings
 
 from webauthn import (
     generate_registration_options,
@@ -33,9 +35,10 @@ from webauthn.helpers.exceptions import InvalidRegistrationResponse, InvalidAuth
 from authenticator.forms import LoginSessionForm, RegistrationSessionForm
 from .models import Credential, LoginSession, RegistrationSession, User
 
-import logging
 
 logger = logging.getLogger('authenticator.logger')
+if settings.DEBUG:
+    logger.setLevel(logging.DEBUG)
 
 RP_ID = settings.RP_ID
 RP_NAME = settings.RP_NAME
@@ -51,14 +54,16 @@ def createSession(form_class, request):
     been confirmed by biometrics.
     """
 
-    form = form_class(request.POST)
     try:
+        form = form_class(request.POST)
         session = form.save()
         session_id = session.id
+        logger.debug(f"Created {type(session).__name__} with id {session_id}")
         return JsonResponse({'id': session_id})
     except Exception as e:
         if form.has_error and 'username' in form.errors:
             # set messages to be displayed in template
+            logger.debug(f"Form error: {form.errors['username']}")
             messages.error(request, form.errors['username'])
             return redirect(request.path)
         logger.exception(e)
@@ -74,12 +79,16 @@ class RegisterRequestView(View):
     def post(self, request):
         try:
             session_id = request.GET['id']
+            logger.debug(f"Processing client request for RegistrationSession {session_id}.")
+            
             password = request.POST['password']
             
             # check that temp session exists and password matches
             username = RegistrationSession.objects.get(id=session_id).username
             registration_session = authenticate(request, username=username, password=password)
             if not registration_session:
+                logger.debug(f"Registration error: failed authentication for {username}, \
+                             RegistrationSession is None.")
                 messages.error(request, 'User could not be authenticated, try again.')
                 # response to ajax request
                 return HttpResponse(status=401)
@@ -98,6 +107,8 @@ class RegisterRequestView(View):
                     resident_key=ResidentKeyRequirement.REQUIRED,
                 ),
             )
+            logger.debug(f"Registration options created for RegistrationSession {session_id}, returning to client.")
+            
             request.session['session_id'] = session_id
             request.session['user_id'] = user_id
             # save challenge in session to be verified later
@@ -105,9 +116,11 @@ class RegisterRequestView(View):
 
             return JsonResponse(json.loads(options_to_json(registration_options)))
         except RegistrationSession.DoesNotExist as e:
+            logger.exception(e)
             messages.error(request, "Invalid session")
             return HttpResponse(status=401)
         except ValidationError as e:
+            logger.exception(e)
             messages.error(request, "Invalid session")
             return HttpResponse(status=401)
         except Exception as e:
@@ -123,9 +136,12 @@ class RegisterResponseView(View):
     """
 
     def post(self, request):
-        credential = json.loads(request.POST['credential'])
-
         try:
+            session_id = request.session['session_id']
+            logger.debug(f"Processing client response for RegistrationSession {session_id}.")
+            
+            credential = json.loads(request.POST['credential'])
+            
             # Registration Response Verification
             registration_verification = verify_registration_response(
                 credential=RegistrationCredential.parse_raw(
@@ -144,9 +160,10 @@ class RegisterResponseView(View):
                 expected_rp_id=RP_ID,
                 require_user_verification=True,
             )
+            logger.debug(f"Registration options verified for RegistrationSession {session_id}.")
+            
             del request.session['challenge']
 
-            session_id = request.session['session_id']
             user_id = request.session['user_id']
             request.session.flush()
             
@@ -168,7 +185,9 @@ class RegisterResponseView(View):
                 )
             
             new_user.save()
+            logger.debug(f"RegistrationSession {session_id}: new User created with id {user_id}.")
             new_credential.save()
+            logger.debug(f"RegistrationSession {session_id}: new Credential created for User id {user_id}.")
 
             return HttpResponse(status=200)
         
@@ -189,6 +208,8 @@ class LoginRequestView(View):
     def post(self, request):
         try:
             session_id = request.GET['id']
+            logger.debug(f"Processing client request for LoginSession {session_id}.")
+            
             login_session = LoginSession.objects.get(id=session_id)
             user = login_session.user
         
@@ -198,12 +219,14 @@ class LoginRequestView(View):
                 PublicKeyCredentialDescriptor(id=base64url_to_bytes(c.credential_id))
                 for c in user_credentials
                 ]
+            logger.debug(f"Retrieved allowed credentials for User id: {user.id}.")
             
             authentication_options = generate_authentication_options(
                 rp_id=RP_ID,
                 allow_credentials=allow_credentials,
                 user_verification=UserVerificationRequirement.REQUIRED,
             )
+            logger.debug(f"Authentication options created for LoginSession {session_id}, returning to client.")
             
             # save challenge in session to be verified later
             request.session['challenge'] = bytes_to_base64url(authentication_options.challenge)
@@ -223,15 +246,17 @@ class LoginResponseView(View):
     
     def post(self, request):
         try:
-            credential = json.loads(request.POST['credential'])
-            
             session_id = request.session['session_id']
+            logger.debug(f"Processing client response for LoginSession {session_id}.")
+            
+            credential = json.loads(request.POST['credential'])
             login_session = LoginSession.objects.get(id=session_id)
             
             saved_credential = Credential.objects.get(
                 user_id=login_session.user.id, 
                 credential_id=credential['id']
                 )
+            logger.debug(f"Retrieved saved credentials for User id {login_session.user.id}.")
 
             # Authentication Response Verification
             # verify that the signature in client response was signed with the private key 
@@ -258,6 +283,8 @@ class LoginResponseView(View):
                 credential_current_sign_count=0,
                 require_user_verification=True,
             )
+            logger.debug(f"Authentication options verified for LoginSession {session_id}.")
+            
             request.session.flush()
 
             # set session status
@@ -307,9 +334,11 @@ def registrationCompleted(request, session_id):
         session = RegistrationSession.objects.get(id=session_id)
         if session.completed:
             session.delete()
+            logger.debug(f"RegistrationSession {session_id} deleted.")
             return HttpResponse(True, status=200)
         return HttpResponse(False, status=200)
     except RegistrationSession.DoesNotExist as e:
+        logger.debug(f"RegistrationSession {session_id} does not exist.")
         return HttpResponse(False, status=200)
     except Exception as e:
         logger.exception(e)
@@ -322,9 +351,12 @@ def userLogin(request, session_id):
         session = LoginSession.objects.get(id=session_id)
         if session.completed:
             login(request, session.user)
+            logger.debug(f"User id {session.user.id} logged in.")
             session.delete()
+            logger.debug(f"LoginSession {session_id} deleted.")
         return HttpResponse(status=200)
     except LoginSession.DoesNotExist as e:
+        logger.debug(f"LoginSession {session_id} does not exist.")
         return HttpResponse(status=200)
     except Exception as e:
         logger.exception(e)

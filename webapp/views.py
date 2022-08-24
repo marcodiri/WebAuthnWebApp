@@ -1,7 +1,6 @@
 import json
 import logging
 import base64
-from urllib import request
 import qrcode
 from io import BytesIO
 from urllib.parse import urlencode
@@ -11,12 +10,15 @@ from django.views.generic import TemplateView
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.contrib.auth import logout
+from django.conf import settings
 
 from authenticator.forms import LoginSessionForm, RegisterBiometricsForm, RegistrationSessionForm
 from authenticator.views import createSession, registrationCompleted, userLogin
 
 
 logger = logging.getLogger('webapp.logger')
+if settings.DEBUG:
+    logger.setLevel(logging.DEBUG)
 
 
 class InputView(TemplateView):
@@ -122,6 +124,7 @@ class IndexView(TemplateView):
 
 def userLogout(request):
     if request.user.is_authenticated:
+        user_id = request.user.id
         logout(request)
+        logger.debug(f"User id {user_id} logged out.")
     return redirect("/")
-
