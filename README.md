@@ -1,4 +1,4 @@
-# WebAuthn Login Web Application
+# WebAuthn for biometric authentication
 ## Run
 As per [Webauthn specification](https://w3c.github.io/webauthn/#relying-party-identifier), the host's domain name (i.e. the address you visit to open the website) cannot be an IP address (see [issue](https://github.com/w3c/webauthn/issues/1358)).<br>
 This means that when testing locally, you cannot connect to the webserver through the IP of the host machine, otherwise Webauthn will fail to verify the client.

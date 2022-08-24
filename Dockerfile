@@ -1,6 +1,6 @@
 FROM python:alpine
 
-RUN apk add git && git clone https://github.com/marcodiri/WebAuthnWebApp.git /webauthn
+RUN apk add git && git clone https://github.com/marcodiri/webauthn_biometric_authentication.git /webauthn
 
 WORKDIR /webauthn
 
