@@ -5,11 +5,11 @@ This means that when testing locally, you cannot connect to the web server throu
 Instead you'll have to connect through the host **network name**, which usually modems automatically set to the connected machine **hostname**.<br>
 Print hostname and verify that the host machine is reachable:
    ```bash
-   Linux:
+   # Linux:
    $ hostname
    $ ping `hostname`
    
-   Windows (cmd):
+   # Windows (cmd):
    > echo %COMPUTERNAME%
    > ping %COMPUTERNAME%
    ```
@@ -22,11 +22,13 @@ If ping fails, you'll have to go to your modem page and add a DNS entry to redir
    ```
 2. Open a terminal in the Dockerfile directory and run:
    ```bash
-   Linux:
+   # N.B. If your hostname contains uppercase letters, manually type it lowercase.
+   
+   # Linux:
    $ docker build -t sekm:webauthn --build-arg HOSTNAME=`hostname` .
    $ docker run --rm -it -p 8000:8000 sekm:webauthn
    
-   Windows (cmd):
+   # Windows (cmd):
    > docker build -t sekm:webauthn --build-arg HOSTNAME=%COMPUTERNAME% .
    > docker run --rm -it -p 8000:8000 sekm:webauthn
    ```
