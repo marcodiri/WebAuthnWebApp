@@ -19,7 +19,7 @@ from django.contrib.messages import constants as messages
 env = environ.Env()
 environ.Env.read_env()
 
-RP_ID = env('HOSTNAME')
+RP_ID = str(env('HOSTNAME')).lower()
 RP_NAME = env('RP_NAME')
 AUTH_USER_MODEL = 'authenticator.User'
 
