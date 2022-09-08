@@ -39,22 +39,31 @@ If ping fails, you'll have to go to your modem page and add a DNS entry to redir
 ## Usage
 Your desktop and mobile devices have to be on the same network.
 ### Register with fingerprint
-1. Connect to the webserver from **desktop**
+1. Connect to the webserver from **desktop**<br>
+   <img src="https://raw.githubusercontent.com/marcodiri/webauthn_biometric_authentication/master/images/index.jpg" width="600">
 2. Click **Register**
-3. Choose *Username* and *Password*
-4. A QR code containing a link will be generated, leave this page open
+3. Choose *Username* and *Password* and click the **Register** button<br>
+   <img src="https://raw.githubusercontent.com/marcodiri/webauthn_biometric_authentication/master/images/reg.jpg" width="600">
+4. A QR code containing a link will be generated, leave this page open<br>
+   <img src="https://raw.githubusercontent.com/marcodiri/webauthn_biometric_authentication/master/images/reg-qr.jpg" width="600">
 5. Scan the QR on a **mobile device with biometric sensor available**
-6. A webpage will open asking you to repeat the password chosen at step 2 and click **Proceed**
-7. The device will ask you to scan your fingerprint
+6. A webpage will open asking you to repeat the password chosen at step 2 and click **Proceed**<br>
+   <img src="https://raw.githubusercontent.com/marcodiri/webauthn_biometric_authentication/master/images/reg-mobile.jpg" height="400">
+7. The device will ask you to scan your fingerprint<br>
+   <img src="https://raw.githubusercontent.com/marcodiri/webauthn_biometric_authentication/master/images/cred-req.jpg" height="400">
 8. After that the account will be created
-9. After a short while, the desktop will be redirected to a *success* page.
+9. After a short while, the desktop will be redirected to a *success* page.<br>
+   <img src="https://raw.githubusercontent.com/marcodiri/webauthn_biometric_authentication/master/images/reg-complete.jpg" width="600">
 
 ### Login with fingerprint
 1. Connect to the webserver from **desktop**
 2. Click **Login**
-3. Insert a registered *Username*
-4. A QR code containing a link will be generated, leave this page open
+3. Insert a registered *Username* and click the **Login with biometrics** button<br>
+   <img src="https://raw.githubusercontent.com/marcodiri/webauthn_biometric_authentication/master/images/log.jpg" width="600">
+4. A QR code containing a link will be generated, leave this page open<br>
+   <img src="https://raw.githubusercontent.com/marcodiri/webauthn_biometric_authentication/master/images/log-qr.jpg" width="600">
 5. Scan the QR on a **mobile device with biometric sensor available**
 6. A webpage will open and check if the biometric sensor is the one associated with the *User*
 7. If positive, the device will ask you to scan your fingerprint
-8. After a short while, the desktop will be redirected to the **User Profile** page.
+8. After a short while, the desktop will be redirected to the **User Profile** page.<br>
+   <img src="https://raw.githubusercontent.com/marcodiri/webauthn_biometric_authentication/master/images/user-profile.jpg" width="600">
